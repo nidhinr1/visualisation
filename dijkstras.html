@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dijkstra's Algorithm Visualization</title>
+    <style>
+        .title {
+            text-align: center;
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        canvas {
+            border: 1px solid black;
+            display: block;
+            margin: 20px auto;
+        }
+
+        button {
+            display: block;
+            margin: 20px auto;
+            padding: 10px 20px;
+            font-size: 18px;
+            cursor: pointer;
+        }
+
+        #shortestPaths {
+            margin: 20px auto;
+            font-size: 18px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+<h1 class="title">Dijkstra's Algorithm Visualization</h1>
+<canvas id="canvas" width="800" height="400"></canvas>
+<button onclick="runDijkstra()">Run Dijkstra's Algorithm</button>
+<p id="shortestPaths"></p>
+
+<script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const nodes = [
+        {x: 50, y: 200, label: 'A'}, // Node 0
+        {x: 250, y: 50, label: 'B'}, // Node 1
+        {x: 450, y: 270, label: 'C'}, // Node 2
+        {x: 170, y: 350, label: 'D'} // Node 3
+    ];
+    const edges = [
+        {start: 0, end: 1, weight: 4},
+        {start: 0, end: 2, weight: 2},
+        {start: 1, end: 2, weight: 5},
+        {start: 1, end: 3, weight: 10},
+        {start: 2, end: 3, weight: 3}
+    ];
+
+    let distances = [];
+    let visited = [];
+    let path = [];
+    let startNode = 0; // Change this to start from a different node if needed
+
+    function drawNode(x, y, label) {
+        ctx.beginPath();
+        ctx.arc(x, y, 20, 0, 2 * Math.PI);
+        ctx.fillStyle = 'lightblue';
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = 'black';
+        ctx.font = '16px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(label, x, y + 5);
+    }
+
+    function drawEdge(startX, startY, endX, endY, weight) {
+        ctx.beginPath();
+        ctx.moveTo(startX, startY);
+        ctx.lineTo(endX, endY);
+        ctx.stroke();
+        ctx.font = '14px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(weight, (startX + endX) / 2, (startY + endY) / 2);
+    }
+
+    function drawGraph() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        for (let i = 0; i < nodes.length; i++) {
+            drawNode(nodes[i].x, nodes[i].y, nodes[i].label);
+        }
+        for (let i = 0; i < edges.length; i++) {
+            const startNode = nodes[edges[i].start];
+            const endNode = nodes[edges[i].end];
+            drawEdge(startNode.x, startNode.y, endNode.x, endNode.y, edges[i].weight);
+        }
+    }
+
+    async function runDijkstra() {
+        distances = [];
+        visited = [];
+        path = [];
+        startNode = 0;
+
+        // Initialize distances to infinity and mark all nodes as unvisited
+        for (let i = 0; i < nodes.length; i++) {
+            distances[i] = Infinity;
+            visited[i] = false;
+        }
+
+        // Distance from the starting node to itself is 0
+        distances[startNode] = 0;
+
+        let shortestPaths = [];
+
+        for (let i = 0; i < nodes.length; i++) {
+            // Find the unvisited node with the smallest distance
+            let minDistance = Infinity;
+            let minIndex = -1;
+            for (let j = 0; j < nodes.length; j++) {
+                if (!visited[j] && distances[j] < minDistance) {
+                    minDistance = distances[j];
+                    minIndex = j;
+                }
+            }
+
+            // Mark the found node as visited
+            visited[minIndex] = true;
+
+            // Update distances to adjacent nodes
+            for (let j = 0; j < edges.length; j++) {
+                const edge = edges[j];
+                if (edge.start === minIndex && !visited[edge.end]) {
+                    const newDistance = distances[minIndex] + edge.weight;
+                    if (newDistance < distances[edge.end]) {
+                        distances[edge.end] = newDistance;
+                        path[edge.end] = minIndex; // Store the previous node for path reconstruction
+                    }
+                }
+            }
+
+            // Store the shortest path to current node
+            if (i !== startNode) {
+                shortestPaths.push({
+                    startNode: nodes[startNode].label,
+                    endNode: nodes[i].label,
+                    path: getShortestPath(path, i)
+                });
+            }
+
+            // Draw the updated graph with highlighted nodes and edges
+            drawGraph();
+            drawHighlightedNode(minIndex);
+            drawHighlightedEdges(path, minIndex);
+            await sleep(1000); // Add a short delay for visualization
+        }
+
+        // Display the shortest paths in a <p> tag
+        displayShortestPaths(shortestPaths);
+    }
+
+    function drawHighlightedNode(nodeIndex) {
+        ctx.beginPath();
+        ctx.arc(nodes[nodeIndex].x, nodes[nodeIndex].y, 20, 0, 2 * Math.PI);
+        ctx.fillStyle = 'yellow';
+        ctx.fill();
+        ctx.stroke();
+    }
+
+    function drawHighlightedEdges(path, currentNode) {
+        ctx.strokeStyle = 'red';
+        ctx.lineWidth = 3;
+        while (path[currentNode] !== undefined) {
+            const prevNode = path[currentNode];
+            const startX = nodes[prevNode].x;
+            const startY = nodes[prevNode].y;
+            const endX = nodes[currentNode].x;
+            const endY = nodes[currentNode].y;
+            drawEdge(startX, startY, endX, endY, edges.find(edge => edge.start === prevNode && edge.end === currentNode).weight);
+            currentNode = prevNode;
+        }
+        ctx.strokeStyle = 'black';
+        ctx.lineWidth = 1;
+    }
+
+    function getShortestPath(path, nodeIndex) {
+        const shortestPath = [nodes[nodeIndex].label];
+        while (path[nodeIndex] !== undefined) {
+            shortestPath.unshift(nodes[path[nodeIndex]].label);
+            nodeIndex = path[nodeIndex];
+        }
+        return shortestPath.join(" -> ");
+    }
+
+    function displayShortestPaths(shortestPaths) {
+        const shortestPathsContainer = document.getElementById('shortestPaths');
+        shortestPathsContainer.innerHTML = '';
+        shortestPaths.forEach(path => {
+            const p = document.createElement('p');
+            p.textContent = `From node ${path.startNode} to node ${path.endNode}: ${path.path}`;
+            shortestPathsContainer.appendChild(p);
+        });
+    }
+
+    function sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    drawGraph();
+</script>
+</body>
+</html>

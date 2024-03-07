@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Floyd-Warshall Algorithm Visualization</title>
+    <style>
+        .title {
+            text-align: center;
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        canvas {
+            border: 1px solid black;
+            display: block;
+            margin: 20px auto;
+        }
+
+        button {
+            display: block;
+            margin: 20px auto;
+            padding: 10px 20px;
+            font-size: 18px;
+            cursor: pointer;
+        }
+
+        #shortestPaths {
+            margin: 20px auto;
+            font-size: 18px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+<h1 class="title">Floyd-Warshall Algorithm Visualization</h1>
+<canvas id="canvas" width="800" height="400"></canvas>
+<button onclick="runFloydWarshall()">Run Floyd-Warshall Algorithm</button>
+<p id="shortestPaths"></p>
+
+<script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const nodes = [
+        {x: 50, y: 200, label: 'A'}, // Node 0
+        {x: 250, y: 50, label: 'B'}, // Node 1
+        {x: 450, y: 270, label: 'C'}, // Node 2
+        {x: 170, y: 350, label: 'D'} // Node 3
+    ];
+    const edges = [
+        {start: 0, end: 1, weight: 4},
+        {start: 0, end: 2, weight: 2},
+        {start: 1, end: 2, weight: 5},
+        {start: 1, end: 3, weight: 10},
+        {start: 2, end: 3, weight: 3}
+    ];
+
+    let distances = [];
+    let path = [];
+    let shortestPaths = [];
+
+    function drawNode(x, y, label) {
+        ctx.beginPath();
+        ctx.arc(x, y, 20, 0, 2 * Math.PI);
+        ctx.fillStyle = 'lightblue';
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = 'black';
+        ctx.font = '16px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(label, x, y + 5);
+    }
+
+    function drawEdge(startX, startY, endX, endY, weight, isShortestPath = false) {
+        ctx.beginPath();
+        ctx.moveTo(startX, startY);
+        ctx.lineTo(endX, endY);
+        ctx.strokeStyle = isShortestPath ? 'red' : 'black';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.font = '14px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(weight, (startX + endX) / 2, (startY + endY) / 2);
+    }
+
+    function drawGraph() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        for (let i = 0; i < nodes.length; i++) {
+            drawNode(nodes[i].x, nodes[i].y, nodes[i].label);
+        }
+        for (let i = 0; i < edges.length; i++) {
+            const startNode = nodes[edges[i].start];
+            const endNode = nodes[edges[i].end];
+            const weight = edges[i].weight;
+            const isShortestPath = shortestPaths.some(path => (path.start === edges[i].start && path.end === edges[i].end) ||
+                (path.start === edges[i].end && path.end === edges[i].start));
+            drawEdge(startNode.x, startNode.y, endNode.x, endNode.y, weight, isShortestPath);
+        }
+    }
+
+    async function runFloydWarshall() {
+        distances = [];
+        path = [];
+        shortestPaths = [];
+
+        for (let i = 0; i < nodes.length; i++) {
+            distances[i] = [];
+            path[i] = [];
+            for (let j = 0; j < nodes.length; j++) {
+                if (i === j) {
+                    distances[i][j] = 0;
+                } else {
+                    distances[i][j] = Infinity;
+                }
+                path[i][j] = j;
+            }
+        }
+
+        edges.forEach(edge => {
+            distances[edge.start][edge.end] = edge.weight;
+        });
+
+        for (let k = 0; k < nodes.length; k++) {
+            for (let i = 0; i < nodes.length; i++) {
+                for (let j = 0; j < nodes.length; j++) {
+                    if (distances[i][j] > distances[i][k] + distances[k][j]) {
+                        distances[i][j] = distances[i][k] + distances[k][j];
+                        path[i][j] = path[i][k];
+                    }
+                }
+            }
+            drawGraph();
+            await sleep(1000);
+        }
+
+        findShortestPaths();
+        drawShortestPaths();
+        displayShortestPaths();
+    }
+
+    function findShortestPaths() {
+        for (let i = 0; i < nodes.length; i++) {
+            for (let j = i + 1; j < nodes.length; j++) {
+                let current = i;
+                let shortestPath = [];
+                while (current !== j) {
+                    shortestPath.push(current);
+                    current = path[current][j];
+                }
+                shortestPath.push(j);
+                shortestPaths.push({start: i, end: j, path: shortestPath});
+            }
+        }
+    }
+
+    function drawShortestPaths() {
+        for (let i = 0; i < shortestPaths.length; i++) {
+            const path = shortestPaths[i].path;
+            for (let j = 0; j < path.length - 1; j++) {
+                const startNode = nodes[path[j]];
+                const endNode = nodes[path[j + 1]];
+                drawEdge(startNode.x, startNode.y, endNode.x, endNode.y, edges.find(edge => (edge.start === path[j] && edge.end === path[j + 1]) ||
+                    (edge.start === path[j + 1] && edge.end === path[j])).weight, true);
+            }
+        }
+    }
+
+    function displayShortestPaths() {
+        const shortestPathsContainer = document.getElementById('shortestPaths');
+        shortestPathsContainer.innerHTML = '';
+        shortestPaths.forEach(path => {
+            const startNode = nodes[path.start].label;
+            const endNode = nodes[path.end].label;
+            const pathNodes = path.path.map(index => nodes[index].label).join(' -> ');
+            shortestPathsContainer.innerHTML += `<p>From node ${startNode} to node ${endNode}: ${pathNodes}</p>`;
+        });
+    }
+
+    function sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    drawGraph();
+</script>
+</body>
+</html>
